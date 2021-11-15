@@ -12,6 +12,7 @@ def number_to_character(v):
             return str(v)
 
 def get_ready(mydf, type='bs'):
+    # 컬럼 변환
     if type == 'bs':
         mydf_m = mydf[mydf['해제여부'] != 'O'].copy()
         mydf_m.rename(columns = {'도로명시군구코드' : 'bjd_cd'}, inplace = True)
@@ -23,6 +24,9 @@ def get_ready(mydf, type='bs'):
         mydf_m = mydf_m[['년','월','일','bjd_cd','건축년도','전용면적','층','보증금액','월세금액']]
         mydf_m['보증금액'] = mydf_m['보증금액'].str.replace(',','').astype(int)
         mydf_m['월세금액'] = mydf_m['월세금액'].str.strip().fillna('0').str.replace(',','').astype(int)
+    else:
+        print("type 오류: \{bs, js\} 중 하나")
+        return
     mydf_m = mydf_m[mydf_m['bjd_cd'].notna()]
     mydf_m['bjd_cd'] = mydf_m['bjd_cd'].astype(int).astype(str)
     
@@ -73,9 +77,20 @@ def get_ready(mydf, type='bs'):
                        mydf_m['월'].apply(number_to_character) + \
                        mydf_m['일'].apply(number_to_character)
     mydf_m['YYMMDD'] = pd.to_datetime(mydf_m['YYMMDD'], format='%Y%m%d')
-    mydf_m['WEEKNUM'] = mydf_m['년'].astype(str) + \
-                        mydf_m['YYMMDD'].dt.isocalendar().week\
-                                        .apply(number_to_character).astype(str)
+    mydf_m['WEEKNUM'] = 
+
+
+# %U assumes Monday as first day of the week. Use %W for Sunday
+cats['week_yr'] = 
+pd.to_datetime(cats['year'].astype(str) + ' ' + cats['week'].astype(str) + ' 1',
+                                format='%Y %U %w')
+
+    # mydf_m['WEEKNUM'] = mydf_m['년'].astype(str) + \
+    #                     mydf_m['YYMMDD'].dt.isocalendar().week\
+    #                                     .apply(number_to_character).astype(str)
+    # mydf_m.loc[(mydf_m['월']==1) & (mydf_m['YYMMDD'].dt.isocalendar().week > 50),
+    #            'WEEKNUM'] = (mydf_m['년'] - 1).astype(str) +\
+    #                         mydf_m['YYMMDD'].dt.isocalendar().week.astype(str)
 
     # 이름 바꾸기
     mydf_m.head()
@@ -92,18 +107,27 @@ def get_ready(mydf, type='bs'):
 
     return mydf_m
 
-def show_trend(indat, varn, lgd=None, price='거래금액'):
+# 트렌드 그래프
+def show_trend(indat, varn, lgd=None, price='거래금액', rolling=0):
+    # groupby 컬럼
     grp1 = indat.groupby(['WEEKNUM',varn])[['전용면적',price]].sum()
     grp1['prc_area'] = grp1[price] / grp1['전용면적']
     grp2 = indat.groupby(['WEEKNUM']).size()
+    
+    # 그래프 준비
     plt.figure(figsize=(40, 15))
-    vList = np.sort(indat[varn].unique())
-
+    plt.rc('font', family='AppleGothic')
     fig, ax1 = plt.subplots(figsize=(30, 15))
     ax2 = ax1.twinx()
+
+    vList = np.sort(indat[varn].unique())
     for cd in vList:
         subgrp = grp1.xs(cd, level=1).reset_index()
-        ax1.plot(subgrp.WEEKNUM, subgrp['prc_area'])
+        if rolling > 0:
+            ax1.plot(subgrp.WEEKNUM, 
+                     subgrp.prc_area.rolling(rolling).mean())
+        else:
+            ax1.plot(subgrp.WEEKNUM, subgrp['prc_area'])
     grp2.plot(kind='bar', ax=ax2, alpha=0.2)
 
     if lgd:
@@ -119,15 +143,17 @@ def show_trend(indat, varn, lgd=None, price='거래금액'):
 ###############################################################################
 # 법정동 코드
 LAWD_CD = pd.read_csv('./data/법정동코드 전체자료.txt', sep='\t')
-LAWD_CD['level2'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: x[0] + x[1] if len(x) > 1 else x[0])
+LAWD_CD['level2'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: x[0] + ' ' + x[1] if len(x) > 1 else x[0])
 LAWD_CD['short_cd'] = LAWD_CD['법정동코드'].astype(str).str[:5]
 LAWD_CD2 = LAWD_CD.loc[LAWD_CD.폐지여부 == '존재', ['short_cd','level2']].drop_duplicates()
 
 # 법정동 코드 검색기
 def get_lawd_cd(nm):
     return LAWD_CD2.loc[(LAWD_CD2.level2.str.contains(nm))]
+def get_lawd_cd_all(nm):
+    return LAWD_CD[LAWD_CD.법정동명.str.contains(nm) & (LAWD_CD.폐지여부 == '존재')]
 
-# 서울 지역 정리
+# 서울 지역 추가 정리
 def seoul_area(cd):
     if cd in ['도봉구','강북구','성북구','노원구']:
         return '강북'
@@ -149,105 +175,116 @@ def seoul_area(cd):
         return '기타서울'
 
 # 서울 지역구분
-SEOUL = get_lawd_cd('서울특별시')
-SEOUL['area'] = SEOUL['level2'].str.replace('서울특별시', '')
+SEOUL = get_lawd_cd('서울특별시').copy()
+SEOUL['area'] = SEOUL['level2'].str.replace('서울특별시 ', '')
 SEOUL['gubun'] = SEOUL['area'].apply(seoul_area)
+SEOUL_DICT = SEOUL.set_index('short_cd').to_dict()['area']
 
 # 지역구분 코드 검색기
 def get_gubun_cd(nm):
     return SEOUL.loc[SEOUL.gubun.str.contains(nm), 'short_cd']
+def get_gubun_df(mydf, nm):
+    return mydf[mydf.bjd_cd.isin(get_gubun_cd(nm))]
 
-get_lawd_cd('강서')
-get_gubun_cd('강서')
+get_lawd_cd('수서')
+get_lawd_cd_all('수서')
+get_gubun_cd('수서')
+
+
 
 ###############################################################################
-#  데이터 준비
+#  전세
 ###############################################################################
 # 서울 전세
-df1 = pd.read_csv('./data/all_apt_buysell_2016_2019.csv', encoding='CP949')
-df2 = pd.read_csv('./data/all_apt_buysell_2020.csv', encoding='CP949')
-df3 = pd.read_csv('./data/all_apt_buysell_2021.csv', encoding='CP949')
-df4 = pd.read_csv('./data/all_apt_buysell_202111.csv', encoding='CP949')
-raw = df1.append([df2, df3, df4])
-
-# ready
-raw_v = get_ready(raw)
-raw_v = raw_v[raw_v.WEEKNUM < '202150']
+raw = pd.read_csv('./data/seoul_apt_junse_2021.csv',
+                  encoding='CP949', low_memory=False)
+raw_v = get_ready(raw, type='js')
+raw_v.head()
+# raw_v.WEEKNUM.value_counts().sort_index().plot.bar(figsize=(20, 10))
 
 # 지역별
-show_trend(raw_v, 'bjd_cd')
+tmp = raw_v[(raw_v.bjd_cd=='11500') & (raw_v.월세금액==0)]
+show_trend(tmp,
+           varn='bjd_cd',
+           lgd=['강서구'],
+           price='보증금액',
+           rolling=5)
 # 연령별
-show_trend(raw_v, 'old', ['>=2016','>=2011','>=2006','>=2001','>=1996','>=1991','>=1986'])
+show_trend(tmp, varn='old', 
+           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+           price='보증금액',
+           rolling=2)
 # 면적별
-show_trend(raw_v, 'area', ['<40m2','<60m2','<80m2','<90m2','<120m2','>=120m2'])
-
-# 수지 =========
-sj = pd.read_csv('./data/suji_apt_buysell_2020_2021.csv', encoding='CP949')
-sj = sj.append(pd.read_csv('./data/suji_apt_buysell_2020_2021.csv', encoding='CP949'))
-sj_v = get_ready(sj)
-sj_v = sj_v[sj_v.WEEKNUM < 50]
-show_trend(sj_v, 'old', ['<=2016','<=2011','<=2006','<=2001','<=1996','<=1991','<=1986'])
-show_trend(sj_v, 'area', ['<40m2','<60m2','<80m2','<90m2','<120m2','>=120m2'])
-
-# 수서 전세
-ss = pd.read_csv('./export/seoul_apt_junse_2020.csv', encoding='CP949', low_memory=False)
-ss_v = get_ready(ss, 'js')
-# ss_v = ss_v[(ss_v.월세금액 == 0) & (ss_v.WEEKNUM < '202150') & (ss_v.WEEKNUM > '202060')]
-ss_v = ss_v[(ss_v.월세금액 == 0) & (ss_v.WEEKNUM < '202150')]
-print(ss_v.shape)
-show_trend(ss_v, 'old', 
-           ['<=2016','<=2011','<=2006','<=2001','<=1996','<=1991','<=1986'],
-           price='보증금액')
-show_trend(ss_v, 'area', 
-           ['<40m2','<60m2','<80m2','<90m2','<120m2','>=120m2'],
-           price='보증금액')
+show_trend(tmp, 
+           varn='area', 
+           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+           price='보증금액',
+           rolling=5)
 
 
 
+###############################################################################
+#  매매
+###############################################################################
+# 서울 매매
+raw = pd.read_csv('./data/seoul_apt_buysell_2021.csv',
+                  encoding='CP949', low_memory=False)
+raw_v = get_ready(raw, type='bs')
+
+
+# 지역별: '도심', '동서울', '강북', '서서울', '강서', '남서울', '강남', '강동'
+tmp = get_gubun_df(raw_v, '강서')
+show_trend(tmp,
+           varn='bjd_cd',
+           lgd=list(map(lambda x: SEOUL_DICT[x], np.sort(tmp.bjd_cd.unique()))),
+           rolling=5)
+# 연령별
+show_trend(tmp, 
+           varn='old', 
+           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+           rolling=5)
+# 면적별
+show_trend(tmp, 
+           varn='area', 
+           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+           rolling=5)
+
+
+
+# 법정동코드 별
+interesting_name = '수서'
+get_lawd_cd_all(interesting_name)
+tmp = raw_v[raw_v.bjd_cd=='11680']
+show_trend(tmp,
+           varn='bjd_cd',
+           lgd=[interesting_name],
+           rolling=5)
+# 연령별
+show_trend(tmp, 
+           varn='old', 
+           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+           rolling=5)
+# 면적별
+show_trend(tmp, 
+           varn='area', 
+           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+           rolling=5)
 
 
 
 
-
-grp1 = raw_v.groupby(['WEEKNUM','old'])[['전용면적','거래금액']].sum()
+grp1 = tmp.groupby(['WEEKNUM','old'])[['전용면적','거래금액']].sum()
 grp1['prc_area'] = grp1['거래금액'] / grp1['전용면적']
-grp1['size'] = raw_v.groupby(['WEEKNUM','old']).size()
-grp1.xs('1', level=1)
+grp2 = tmp.groupby(['WEEKNUM']).size()
 
-len(grp1.xs('1', level=1)['prc_area']), len(grp1.xs('1', level=1)['size'])
-grp1.xs('1', level=1)['prc_area']
-grp1.xs('1', level=1)['size']
-grp1.xs('1', level=1)['size'].plot(kind='bar', color='c', alpha=0.3)
-grp1['size'].plot(kind='bar', color='c', alpha=0.3)
-
-grp1.to_csv('./export/grp1.csv', encoding='CP949')
-
-raw_v.groupby(['WEEKNUM'])['전용면적'].count()
+xl = np.sort(tmp.WEEKNUM.unique())
+fig, ax1 = plt.subplots(figsize=(60, 15))
+plt.rc('font', family='AppleGothic')
+plt.xticks(range(len(xl)), xl)
+for cd in vList[0]:
+    subgrp = grp1.xs(cd, level=1).reset_index()
+    ax1.plot(subgrp.WEEKNUM, subgrp['prc_area'])
 
 
-
-grp2 = raw_v.groupby(['WEEKNUM','old'])[['전용면적','거래금액']].agg(['sum','count'])
-grp2.to_csv('./export/grp2.csv', encoding='CP949')
-
-
-for i in range(1, 3):
-    grp1.xs(str(i), level=1)['size'].plot(kind='bar', color='c', alpha=0.3)
-plt.show()
-
-
-grp1.xs('1', level=1).index
-grp2 = raw_v.groupby(['WEEKNUM']).size()
-grp2.index == grp1.xs('1', level=1).index
-
-
-fig, ax1 = plt.subplots(figsize=(30, 15))
-subgrp = grp1.xs('1', level=1).reset_index()
-ax1.plot(subgrp.index, subgrp['prc_area'])
 ax2 = ax1.twinx()
 grp2.plot(kind='bar', ax=ax2, alpha=0.2)
-ax1.set_xlim([-1, 45])
-print(ax1.get_xlim())
-print(ax2.get_xlim())
-print(subgrp.index == grp2.index)
-fig.tight_layout()
-plt.show()

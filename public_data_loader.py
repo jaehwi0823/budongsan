@@ -110,31 +110,6 @@ LAWD_CD2 = LAWD_CD[['short_cd','level2']].drop_duplicates()
 def get_lawd_cd(nm):
     return LAWD_CD2.loc[(LAWD_CD.level2.str.contains(nm)) & (LAWD_CD.폐지여부 == '존재')]
 
-# 서울 지역 정리
-def seoul_area(cd):
-    if cd in ['도봉구','강북구','성북구','노원구']:
-        return '강북'
-    elif cd in ['동대문구','중랑구','성동구','광진구']:
-        return '동서울'
-    elif cd in ['강동구','송파구']:
-        return '강동'
-    elif cd in ['서초구','강남구']:
-        return '강남'
-    elif cd in ['동작구','관악구','금천구']:
-        return '남서울'
-    elif cd in ['강서구','양천구','영등포구','구로구']:
-        return '강서'
-    elif cd in ['은평구','마포구','서대문구']:
-        return '서서울'
-    elif cd in ['종로구','중구','용산구']:
-        return '도심'
-    else:
-        return '기타서울'
-SEOUL = get_lawd_cd('서울특별시')
-SEOUL['area'] = SEOUL['level2'].str.replace('서울특별시', '')
-SEOUL['gubun'] = SEOUL['area'].apply(seoul_area)
-
-
 
 #####################################################################
 #  데이터 수집
@@ -144,9 +119,10 @@ SEOUL_CODES = LAWD_CD.loc[(LAWD_CD.법정동명.str.contains('서울특별시'))
 SEOUL_CODES = SEOUL_CODES.drop(0)
 
 # 서울 아파트 매매
-# all_apt_buysell = pd.DataFrame()
-# all_apt_buysell = get_year_by_codes(apt_buysell_url, 2016, 5, CODES)
-# all_apt_buysell.to_csv('./data/all_apt_buysell_2016_2020.csv', encoding='CP949', index=False)
+seoul_apt_buysell = pd.DataFrame()
+seoul_apt_buysell = get_year_by_codes(apt_buysell_url, 2020, 2, SEOUL_CODES)
+seoul_apt_buysell.to_csv('./data/seoul_apt_buysell_2021.csv', 
+                       encoding='CP949', index=False)
 
 # 서울 아파트 전월세
 seoul_apt_junse = pd.DataFrame()
