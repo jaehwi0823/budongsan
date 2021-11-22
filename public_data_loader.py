@@ -122,8 +122,8 @@ SEOUL_CODES = list(get_lawd_cd('서울특별시').short_cd)[1:]
 GYUNGGI_CODES = list(get_lawd_cd('경기도').short_cd)[1:]
 
 # params
-year = 2020
-rng = 1
+year = 2017
+rng = 3
 
 # 서울/경기, 매매/전세
 for cds, locs in zip([SEOUL_CODES, GYUNGGI_CODES], ['seoul', 'gyunggi']):
@@ -133,28 +133,3 @@ for cds, locs in zip([SEOUL_CODES, GYUNGGI_CODES], ['seoul', 'gyunggi']):
         raw_out.to_csv(f'./data/{locs}_apt_{dtype}_{year}.csv', 
                             encoding='CP949', index=False)
 
-
-
-# # 서울 아파트 매매
-# seoul_apt_buysell = pd.DataFrame()
-# seoul_apt_buysell = get_year_by_codes(apt_buysell_url, year, rng, SEOUL_CODES)
-# seoul_apt_buysell.to_csv('./data/seoul_apt_buysell_2021.csv', 
-#                        encoding='CP949', index=False)
-
-# # 서울 아파트 전월세
-# seoul_apt_junse = pd.DataFrame()
-# seoul_apt_junse = get_year_by_codes(apt_junse_url, year, rng, SEOUL_CODES)
-# seoul_apt_junse.to_csv('./data/seoul_apt_junse_2021.csv', 
-#                        encoding='CP949', index=False)
-
-# # 수지 아파트 전월세
-# suji_apt_junse = pd.DataFrame()
-# suji_apt_junse = get_year_by_codes(apt_junse_url, year, rng, ['41465'])
-# suji_apt_junse.to_csv('./data/suji_apt_junse_2021.csv', 
-#                       encoding='CP949', index=False)
-
-# # 수지 아파트 전월세
-# suji_apt_junse = pd.DataFrame()
-# suji_apt_junse = get_year_by_codes(apt_junse_url, year, rng, ['41465'])
-# suji_apt_junse.to_csv('./data/suji_apt_junse_2021.csv', 
-#                       encoding='CP949', index=False)

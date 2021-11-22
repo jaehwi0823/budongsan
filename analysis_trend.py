@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import StrategyGround as SG
 import numpy as np
+import platform
 
 
 # 년월
@@ -104,7 +105,22 @@ def show_trend(indat, varn, lgd=None, price='거래금액', rolling=0):
     # 그래프 준비
     pltsize = (40, 15)
     plt.figure(figsize=pltsize)
-    plt.rc('font', family='AppleGothic')
+
+    # 한글 폰트 깨짐
+    # plt.rc('font', family='AppleGothic')
+    if platform.system() == 'Darwin': #맥
+            plt.rc('font', family='AppleGothic') 
+    elif platform.system() == 'Windows': #윈도우
+            plt.rc('font', family='Malgun Gothic') 
+    elif platform.system() == 'Linux': #리눅스 (구글 콜랩)
+            #!wget "https://www.wfonts.com/download/data/2016/06/13/malgun-gothic/malgun.ttf"
+            #!mv malgun.ttf /usr/share/fonts/truetype/
+            #import matplotlib.font_manager as fm 
+            #fm._rebuild() 
+            plt.rc('font', family='Malgun Gothic') 
+    plt.rcParams['axes.unicode_minus'] = False #한글 폰트 사용시 마이너스 폰트 깨짐 해결
+
+    # 나머지 그래프
     fig, ax1 = plt.subplots(figsize=pltsize)
     ax2 = ax1.twinx()
 
@@ -125,24 +141,7 @@ def show_trend(indat, varn, lgd=None, price='거래금액', rolling=0):
         ax1.legend(lgd, loc='upper left')
     else:
         ax1.legend(vList, loc='upper left')
-    plt.show()
-
-
-
-###############################################################################
-#  법정동 코드 정비
-###############################################################################
-# 법정동 코드
-LAWD_CD = pd.read_csv('./data/법정동코드 전체자료.txt', sep='\t')
-LAWD_CD['level2'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: x[0] + ' ' + x[1] if len(x) > 1 else x[0])
-LAWD_CD['short_cd'] = LAWD_CD['법정동코드'].astype(str).str[:5]
-LAWD_CD2 = LAWD_CD.loc[LAWD_CD.폐지여부 == '존재', ['short_cd','level2']].drop_duplicates()
-
-# 법정동 코드 검색기
-def get_lawd_cd(nm):
-    return LAWD_CD2.loc[(LAWD_CD2.level2.str.contains(nm))]
-def get_lawd_cd_all(nm):
-    return LAWD_CD[LAWD_CD.법정동명.str.contains(nm) & (LAWD_CD.폐지여부 == '존재')]
+    return fig
 
 # 서울 지역 추가 정리
 def seoul_area(cd):
@@ -165,123 +164,117 @@ def seoul_area(cd):
     else:
         return '기타서울'
 
-# 서울 지역구분
-SEOUL = get_lawd_cd('서울특별시').copy()
-SEOUL['area'] = SEOUL['level2'].str.replace('서울특별시 ', '')
-SEOUL['gubun'] = SEOUL['area'].apply(seoul_area)
-SEOUL_DICT = SEOUL.set_index('short_cd').to_dict()['area']
 
-# 지역구분 코드 검색기
-def get_gubun_cd(nm):
-    return SEOUL.loc[SEOUL.gubun.str.contains(nm), 'short_cd']
-def get_gubun_df(mydf, nm):
-    return mydf[mydf.bjd_cd.isin(get_gubun_cd(nm))]
+if __name__ == '__main__':
 
-get_lawd_cd('수서')
-get_lawd_cd_all('수서')
-get_gubun_cd('수서')
+    ###############################################################################
+    #  법정동 코드 정비
+    ###############################################################################
+    # 법정동 코드
+    LAWD_CD = pd.read_csv('./data/법정동코드 전체자료.txt', sep='\t')
+    LAWD_CD['level2'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: x[0] + ' ' + x[1] if len(x) > 1 else x[0])
+    LAWD_CD['short_cd'] = LAWD_CD['법정동코드'].astype(str).str[:5]
+    LAWD_CD2 = LAWD_CD.loc[LAWD_CD.폐지여부 == '존재', ['short_cd','level2']].drop_duplicates()
 
+    # 법정동 코드 검색기
+    def get_lawd_cd(nm):
+        return LAWD_CD2.loc[(LAWD_CD2.level2.str.contains(nm))]
+    def get_lawd_cd_all(nm):
+        return LAWD_CD[LAWD_CD.법정동명.str.contains(nm) & (LAWD_CD.폐지여부 == '존재')]
 
+    # 서울 지역구분
+    SEOUL = get_lawd_cd('서울특별시').copy()
+    SEOUL['area'] = SEOUL['level2'].str.replace('서울특별시 ', '')
+    SEOUL['gubun'] = SEOUL['area'].apply(seoul_area)
+    SEOUL_DICT = SEOUL.set_index('short_cd').to_dict()['area']
 
-###############################################################################
-#  전세
-###############################################################################
-# 서울 전세
-raw = pd.read_csv('./data/seoul_apt_junse_2020.csv',
-                  encoding='CP949', low_memory=False)
-raw_v = get_ready(raw, type='js')
-# raw_v.head()
-# raw_v.WEEKNUM.value_counts().sort_index().plot.bar(figsize=(20, 10))
+    # 지역구분 코드 검색기
+    def get_gubun_cd(nm):
+        return SEOUL.loc[SEOUL.gubun.str.contains(nm), 'short_cd']
+    def get_gubun_df(mydf, nm):
+        return mydf[mydf.bjd_cd.isin(get_gubun_cd(nm))]
 
-# 지역별
-tmp = raw_v[(raw_v.bjd_cd=='11500') & (raw_v.월세금액==0)]
-show_trend(tmp,
-           varn='bjd_cd',
-           lgd=['강서구'],
-           price='보증금액',
-           rolling=5)
-# 연령별
-show_trend(tmp, varn='old', 
-           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
-           price='보증금액',
-           rolling=2)
-# 면적별
-show_trend(tmp, 
-           varn='area', 
-           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
-           price='보증금액',
-           rolling=5)
+    get_lawd_cd('수서')
+    get_lawd_cd_all('수서')
+    get_gubun_cd('수서')
 
 
 
-###############################################################################
-#  매매
-###############################################################################
-# 서울 매매
-raw = pd.read_csv('./data/seoul_apt_buysell_2020.csv',
-                  encoding='CP949', low_memory=False)
-raw_v = get_ready(raw, type='bs')
+    ###############################################################################
+    #  전세
+    ###############################################################################
+    # 서울 전세
+    raw = pd.read_csv('./data/seoul_apt_junse_2020.csv',
+                    encoding='CP949', low_memory=False)
+    raw_v = get_ready(raw, type='js')
+    # raw_v.head()
+    # raw_v.WEEKNUM.value_counts().sort_index().plot.bar(figsize=(20, 10))
 
-
-# 지역별: '도심', '동서울', '강북', '서서울', '강서', '남서울', '강남', '강동'
-tmp = get_gubun_df(raw_v, '강서')
-show_trend(tmp,
-           varn='bjd_cd',
-           lgd=list(map(lambda x: SEOUL_DICT[x], np.sort(tmp.bjd_cd.unique()))),
-           rolling=5)
-# 연령별
-show_trend(tmp, 
-           varn='old', 
-           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
-           rolling=5)
-# 면적별
-show_trend(tmp, 
-           varn='area', 
-           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
-           rolling=5)
-
-
-
-# 법정동코드 찾기
-interesting_name = '수서'
-get_lawd_cd_all(interesting_name)
-# 법정동코드 별
-tmp = raw_v[raw_v.bjd_cd=='11680']
-show_trend(tmp,
-           varn='bjd_cd',
-           lgd=[interesting_name],
-           rolling=5)
-# 연령별
-show_trend(tmp, 
-           varn='old', 
-           lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
-           rolling=5)
-# 면적별
-show_trend(tmp, 
-           varn='area', 
-           lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
-           rolling=5)
+    # 지역별
+    tmp = raw_v[(raw_v.bjd_cd=='11500') & (raw_v.월세금액==0)]
+    show_trend(tmp,
+            varn='bjd_cd',
+            lgd=['강서구'],
+            price='보증금액',
+            rolling=5)
+    # 연령별
+    show_trend(tmp, varn='old', 
+            lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+            price='보증금액',
+            rolling=2)
+    # 면적별
+    show_trend(tmp, 
+            varn='area', 
+            lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+            price='보증금액',
+            rolling=5)
 
 
 
-
-myPrc = '거래금액'
-myVar = 'old'
-grp1 = tmp.groupby(['WEEKNUM',myVar])[['전용면적',myPrc]].sum()
-grp1['prc_area'] = grp1[myPrc] / grp1['전용면적']
-grp2 = tmp.groupby(['WEEKNUM']).size()
-
-# 그래프 준비
-plt.figure(figsize=(40, 15))
-plt.rc('font', family='AppleGothic')
-fig, ax1 = plt.subplots(figsize=(40, 15))
-ax2 = ax1.twinx()
-
-vList = np.sort(raw_v[myVar].unique())
-for cd in vList:
-    subgrp = grp1.xs(cd, level=1).reset_index()
-    ax1.plot(subgrp.WEEKNUM, subgrp['prc_area'])
-ax2.bar(grp1.reset_index()['WEEKNUM'].drop_duplicates(), grp2, alpha=0.2)
-plt.show()
+    ###############################################################################
+    #  매매
+    ###############################################################################
+    # 서울 매매
+    raw = pd.read_csv('./data/seoul_apt_buysell_2020.csv',
+                    encoding='CP949', low_memory=False)
+    raw_v = get_ready(raw, type='bs')
 
 
+    # 지역별: '도심', '동서울', '강북', '서서울', '강서', '남서울', '강남', '강동'
+    tmp = get_gubun_df(raw_v, '강서')
+    show_trend(tmp,
+            varn='bjd_cd',
+            lgd=list(map(lambda x: SEOUL_DICT[x], np.sort(tmp.bjd_cd.unique()))),
+            rolling=5)
+    # 연령별
+    show_trend(tmp, 
+            varn='old', 
+            lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+            rolling=5)
+    # 면적별
+    show_trend(tmp, 
+            varn='area', 
+            lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+            rolling=5)
+
+
+
+    # 법정동코드 찾기
+    interesting_name = '수서'
+    get_lawd_cd_all(interesting_name)
+    # 법정동코드 별
+    tmp = raw_v[raw_v.bjd_cd=='11680']
+    show_trend(tmp,
+            varn='bjd_cd',
+            lgd=[interesting_name],
+            rolling=5)
+    # 연령별
+    show_trend(tmp, 
+            varn='old', 
+            lgd=['2016 이내','2011 이내','2006 이내','2001 이내','1996 이내','1991 이내','1986 이내'],
+            rolling=5)
+    # 면적별
+    show_trend(tmp, 
+            varn='area', 
+            lgd=['40m2 미만','60m2 미만','80m2 미만','90m2 미만','120m2 미만','120m2 이상'],
+            rolling=5)
