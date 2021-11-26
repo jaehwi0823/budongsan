@@ -1,9 +1,9 @@
 import requests
-from xml.etree import ElementTree
 import pandas as pd
+from xml.etree import ElementTree
 
 
-# get key
+# get data.go.kr key
 encodingKey = ''
 decodingKey = ''
 with open("./account/datago.txt", "r") as f:
@@ -11,12 +11,18 @@ with open("./account/datago.txt", "r") as f:
             decodingKey = f.readline()
 encodingKey = encodingKey.replace('\n', '')
 
+# get db key
+dbId = ''
+dbPw = ''
+with open("./account/dynamo.txt", "r") as f:
+            dbId = f.readline()
+            dbPw = f.readline()
+dbId = dbId.replace('\n', '')
+
 # 년월
-def number_to_character(v):
-        if v < 10:
-            return '0' + str(v)
-        else:
-            return str(v)
+def number_to_character(v, length=2):
+        return (length - len(str(v))) * '0' + str(v)
+
 
 # make url
 def apt_buysell_url(lawd_cd, deal_ymd, pageNo, rowNum):
@@ -112,7 +118,7 @@ def get_lawd_cd(nm):
     return LAWD_CD2.loc[(LAWD_CD2.level2.str.contains(nm))]
 def get_lawd_cd_all(nm):
     return LAWD_CD[LAWD_CD.법정동명.str.contains(nm) & (LAWD_CD.폐지여부 == '존재')]
-
+get_lawd_cd_all('수서')
 
 #####################################################################
 #  데이터 수집
