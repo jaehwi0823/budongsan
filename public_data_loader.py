@@ -156,15 +156,15 @@ def update_bds_data(urlFn, code, yyyymm):
     else:
         rslt = prep_bds_data(myCollection, rslt)
         
-        ndb.delete_item(db_name='BUDONGSAN', 
-                        collection_name=myCollection, 
-                        condition={'지역코드': code,
-                                '년': yy,
-                                '월':mm})
+        ndb.delete_item(db_name = 'BUDONGSAN', 
+                        collection_name = myCollection, 
+                        condition = {'지역코드': code,
+                                     '년': yy,
+                                     '월':mm})
         print(f"{code} in {yy}.{mm}. data deleted!")
-        rsp = ndb.insert_item_many(rslt.to_dict('records'), 
-                                db_name='BUDONGSAN', 
-                                collection_name=myCollection)
+        rsp = ndb.insert_item_many(db_name = 'BUDONGSAN', 
+                                   collection_name = myCollection,
+                                   datas = rslt.to_dict('records'))
         print(f"{code} in {yy}.{mm}. data inserted!")
         print("-"*10)
         return rslt

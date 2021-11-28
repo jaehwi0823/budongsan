@@ -11,7 +11,7 @@ def init_lawd_cd():
     LAWD_CD['level2'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: x[0] + ' ' + x[1] if len(x) > 1 else x[0])
     LAWD_CD['len'] = LAWD_CD['법정동명'].str.split(' ').apply(lambda x: len(x))
     LAWD_CD['short_cd'] = LAWD_CD['법정동코드'].astype(str).str[:5]
-    ndb.insert_item_many(LAWD_CD.to_dict('records'), 'BUDONGSAN', 'LAWDCD')
+    ndb.insert_item_many('BUDONGSAN', 'LAWDCD', LAWD_CD.to_dict('records'))
 
 
 
@@ -28,7 +28,24 @@ def get_searchable_lawd_cd(nm):
                                       condition={'법정동명': {'$regex': nm, '$options' : 'i'}, 'len':2}))
 # get_lawd_cd_all('수서')
 # get_searchable_lawd_cd('수서')
-
+def get_address_cds():
+    rslt = pd.DataFrame(ndb.find_item(db_name='BUDONGSAN',
+                                      collection_name='LAWDCD',
+                                      condition={'len':2},
+                                      fields={'short_cd':1}))
+    return rslt.drop_duplicates()
+def get_address_nms():
+    rslt = pd.DataFrame(ndb.find_item(db_name='BUDONGSAN',
+                                      collection_name='LAWDCD',
+                                      condition={'len':2},
+                                      fields={'법정동명':1}))
+    return rslt.drop_duplicates()
+def get_address_cdnms():
+    rslt = pd.DataFrame(ndb.find_item(db_name='BUDONGSAN',
+                                      collection_name='LAWDCD',
+                                      condition={'len':2},
+                                      fields={'short_cd':1, '법정동명':1}))
+    return rslt.drop_duplicates()
 
 
 
