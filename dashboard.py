@@ -4,7 +4,7 @@ import numpy as np
 import platform
 import matplotlib.pyplot as plt
 import analysis_trend as at
-import imp
+# import imp
 import address
 import ndb
 
@@ -208,83 +208,83 @@ st.write("Weekly 전용면적 당 거래금액의 평균을 거래량과 함께 
 ###############################################################################
 #  조건 (사이드바)
 ###############################################################################
-# 거래 종류
-data_type = st.sidebar.selectbox(
-    '관심 거래?',
-    ('매매','전세','월세')
-)
-# 지역코드
-interesting_nm = st.sidebar.selectbox(
-    '관심 지역?',
-    address.get_address_nms().sort_values(by='법정동명')
-)
-all_cds = address.get_address_cdnms()
-interesting_cd = all_cds.loc[all_cds['법정동명'] == interesting_nm, 'short_cd']
-# 그래프 종류
-# detail = st.sidebar.selectbox(
-#     '가격 세분화 기준',
-#     ('상세 지역','아파트 연식','아파트 면적')
+# # 거래 종류
+# data_type = st.sidebar.selectbox(
+#     '관심 거래?',
+#     ('매매','전세','월세')
 # )
-# 저층 제외
-lowFloor = st.sidebar.selectbox(
-    '0: 저층 미제외, 1: 1층 제외, 2: 2층 제외',
-    ('0','1','2')
-)
-# 이동평균 기준
-roll = st.sidebar.selectbox(
-    '이동평균 가격 기준',
-    ('1','2','3','4','5','8','10','12')
-)
-# 데이터 기간
-# periods = st.sidebar.slider(
-#     '기간 선택',
-#     2016, 2021, (2020, 2021)
+# # 지역코드
+# interesting_nm = st.sidebar.selectbox(
+#     '관심 지역?',
+#     address.get_address_nms().sort_values(by='법정동명')
 # )
+# all_cds = address.get_address_cdnms()
+# interesting_cd = all_cds.loc[all_cds['법정동명'] == interesting_nm, 'short_cd']
+# # 그래프 종류
+# # detail = st.sidebar.selectbox(
+# #     '가격 세분화 기준',
+# #     ('상세 지역','아파트 연식','아파트 면적')
+# # )
+# # 저층 제외
+# lowFloor = st.sidebar.selectbox(
+#     '0: 저층 미제외, 1: 1층 제외, 2: 2층 제외',
+#     ('0','1','2')
+# )
+# # 이동평균 기준
+# roll = st.sidebar.selectbox(
+#     '이동평균 가격 기준',
+#     ('1','2','3','4','5','8','10','12')
+# )
+# # 데이터 기간
+# # periods = st.sidebar.slider(
+# #     '기간 선택',
+# #     2016, 2021, (2020, 2021)
+# # )
 
 
 
-###############################################################################
-#  데이터 준비
-###############################################################################
-LOAD_TABLE = 'BS'
-LOAD_COND = {'지역코드':interesting_cd.values[0], 
-             '층':{'$gt':lowFloor}}
-LOAD_COLUMNS = ['지역코드','건축년도','년','월','일','법정동','아파트','층','전용면적']
-if data_type == '매매':
-    LOAD_PRICE = '거래금액'
-    LOAD_COND.update({'해제여부':''})
-    LOAD_COLUMNS = [LOAD_PRICE] + LOAD_COLUMNS
-else:
-    LOAD_TABLE = 'JS'
-    LOAD_COLUMNS = ['보증금액', '월세금액'] + LOAD_COLUMNS
-    LOAD_PRICE = '보증금액'
-    if data_type == '월세':
-        LOAD_PRICE = '월세금액'
-        LOAD_COND.update({'월세금액':{'$ne':'0'}})
+# ###############################################################################
+# #  데이터 준비
+# ###############################################################################
+# LOAD_TABLE = 'BS'
+# LOAD_COND = {'지역코드':interesting_cd.values[0], 
+#              '층':{'$gt':lowFloor}}
+# LOAD_COLUMNS = ['지역코드','건축년도','년','월','일','법정동','아파트','층','전용면적']
+# if data_type == '매매':
+#     LOAD_PRICE = '거래금액'
+#     LOAD_COND.update({'해제여부':''})
+#     LOAD_COLUMNS = [LOAD_PRICE] + LOAD_COLUMNS
+# else:
+#     LOAD_TABLE = 'JS'
+#     LOAD_COLUMNS = ['보증금액', '월세금액'] + LOAD_COLUMNS
+#     LOAD_PRICE = '보증금액'
+#     if data_type == '월세':
+#         LOAD_PRICE = '월세금액'
+#         LOAD_COND.update({'월세금액':{'$ne':'0'}})
 
-SELECTED_DF = pd.DataFrame(ndb.find_item(db_name = 'BUDONGSAN',
-                                         collection_name = LOAD_TABLE,
-                                         condition = LOAD_COND,
-                                         fields = {col:1 for col in LOAD_COLUMNS}))
-# 상세 지역 표시
-# st.write(region, " 지역은 ", get_sub_regions(region))
-st.write("[" + interesting_nm + "] 데이터")
+# SELECTED_DF = pd.DataFrame(ndb.find_item(db_name = 'BUDONGSAN',
+#                                          collection_name = LOAD_TABLE,
+#                                          condition = LOAD_COND,
+#                                          fields = {col:1 for col in LOAD_COLUMNS}))
+# # 상세 지역 표시
+# # st.write(region, " 지역은 ", get_sub_regions(region))
+# st.write("[" + interesting_nm + "] 데이터")
 
-# 그래프
-# tmp = get_gubun_df(raw_v, region)
-# bjd = list(map(lambda x: SEOUL_DICT[x], np.sort(tmp.bjd_cd.unique())))
-# varn, lgd = detail_cd(detail, bjd)
-tmp = get_ready(SELECTED_DF)
-st.pyplot(show_trend(tmp,
-                     varn = '지역코드',
-                     lgd = [interesting_nm],
-                     price = LOAD_PRICE,
-                     rolling = int(roll)))
+# # 그래프
+# # tmp = get_gubun_df(raw_v, region)
+# # bjd = list(map(lambda x: SEOUL_DICT[x], np.sort(tmp.bjd_cd.unique())))
+# # varn, lgd = detail_cd(detail, bjd)
+# tmp = get_ready(SELECTED_DF)
+# st.pyplot(show_trend(tmp,
+#                      varn = '지역코드',
+#                      lgd = [interesting_nm],
+#                      price = LOAD_PRICE,
+#                      rolling = int(roll)))
 
 
-# 상세
-# st.write("RAW 데이터 확인 (임시)")
-# st.write(SELECTED_DF)
+# # 상세
+# # st.write("RAW 데이터 확인 (임시)")
+# # st.write(SELECTED_DF)
 
 # outro
 st.write("데이터 출처: 국토교통부 실거래 API")
