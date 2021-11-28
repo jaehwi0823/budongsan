@@ -147,21 +147,27 @@ def update_bds_data(urlFn, code, yyyymm):
     
     # download
     rslt = get_page_by_code(urlFn, code, yyyymm)
-    rslt = prep_bds_data(myCollection, rslt)
     yy = str(yyyymm)[:4]
     mm = str(yyyymm)[4:]
     
-    ndb.delete_item(db_name='BUDONGSAN', 
-                    collection_name=myCollection, 
-                    condition={'지역코드': code,
-                               '년': yy,
-                               '월':mm})
-    print(f"{code} in {yy}{mm} data deleted!")
-    rsp = ndb.insert_item_many(rslt.to_dict('records'), 
-                               db_name='BUDONGSAN', 
-                               collection_name=myCollection)
-    print(f"{code} in {yy}{mm} data inserted!")
-    return rslt
+    # update
+    if rslt.empty:
+        print(f"{code} in {yy}.{mm}. data: Nothing downloaded :(")
+    else:
+        rslt = prep_bds_data(myCollection, rslt)
+        
+        ndb.delete_item(db_name='BUDONGSAN', 
+                        collection_name=myCollection, 
+                        condition={'지역코드': code,
+                                '년': yy,
+                                '월':mm})
+        print(f"{code} in {yy}.{mm}. data deleted!")
+        rsp = ndb.insert_item_many(rslt.to_dict('records'), 
+                                db_name='BUDONGSAN', 
+                                collection_name=myCollection)
+        print(f"{code} in {yy}.{mm}. data inserted!")
+        print("-"*10)
+        return rslt
 # update_bds_data(apt_buysell_url, '11110', '202111')
 # update_bds_data(apt_junse_url, '11110', '202111')
 
