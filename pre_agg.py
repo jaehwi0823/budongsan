@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 import address
 import ndb
 import pandas as pd
-import sys
 
 
 
@@ -64,63 +63,62 @@ def weekly_data_loader(days, LOAD_COND, LOAD_COLUMNS, LOAD_TABLE):
 
 
 
-class PreAgg:
-    ###########################################################################
-    #  AGG1
-    ###########################################################################
-    def AGG1(self):
-        print('<This is AGG1>')
-        AGG_COLLECTION = 'AGG1'
-        for data_type in ['매매', '전세', '월세']:
-            if data_type == '매매':
-                LOAD_TABLE = 'BS'
-                LOAD_PRICE = '거래금액'
-                LOAD_COND = {'해제여부':''}
-            elif data_type == '전세':
-                LOAD_TABLE = 'JS'
-                LOAD_PRICE = '보증금액'
-                LOAD_COND = {'월세금액': '0'}
-            else:
-                LOAD_TABLE = 'JS'
-                LOAD_PRICE = '월세금액'
-                LOAD_COND = {'월세금액': {'$ne':'0'}}
-            LOAD_COLUMNS = [LOAD_PRICE] + ['년','월','일','전용면적']
+###########################################################################
+#  AGG1
+###########################################################################
+def AGG1():
+    print('<This is AGG1>')
+    AGG_COLLECTION = 'AGG1'
+    for data_type in ['매매', '전세', '월세']:
+        if data_type == '매매':
+            LOAD_TABLE = 'BS'
+            LOAD_PRICE = '거래금액'
+            LOAD_COND = {'해제여부':''}
+        elif data_type == '전세':
+            LOAD_TABLE = 'JS'
+            LOAD_PRICE = '보증금액'
+            LOAD_COND = {'월세금액': '0'}
+        else:
+            LOAD_TABLE = 'JS'
+            LOAD_PRICE = '월세금액'
+            LOAD_COND = {'월세금액': {'$ne':'0'}}
+        LOAD_COLUMNS = [LOAD_PRICE] + ['년','월','일','전용면적']
 
-            for area_cd in address.get_address_cds()['short_cd']:
-                LOAD_COND.update({'지역코드': area_cd})
-                for year in [2021]:
-                    for i in range(53):
-                        SELECTED_DF = weekly_data_loader(get_weekdays(year, i), LOAD_COND, LOAD_COLUMNS, LOAD_TABLE)
-                    
-                        if not SELECTED_DF.empty:
-                            # SELECTED_DF['YYMMDD'] = SELECTED_DF['년'] + \
-                            #                         SELECTED_DF['월'].astype(int).apply(number_to_character) + \
-                            #                         SELECTED_DF['일'].astype(int).apply(number_to_character)
-                            # SELECTED_DF['YYMMDD'] = pd.to_datetime(SELECTED_DF['YYMMDD'], format='%Y%m%d')
-                            # SELECTED_DF['WEEKNUM'] = SELECTED_DF['YYMMDD'].dt.strftime("%Y%U").astype(int)
+        for area_cd in address.get_address_cds()['short_cd']:
+            LOAD_COND.update({'지역코드': area_cd})
+            for year in [2021]:
+                for i in range(53):
+                    SELECTED_DF = weekly_data_loader(get_weekdays(year, i), LOAD_COND, LOAD_COLUMNS, LOAD_TABLE)
+                
+                    if not SELECTED_DF.empty:
+                        # SELECTED_DF['YYMMDD'] = SELECTED_DF['년'] + \
+                        #                         SELECTED_DF['월'].astype(int).apply(number_to_character) + \
+                        #                         SELECTED_DF['일'].astype(int).apply(number_to_character)
+                        # SELECTED_DF['YYMMDD'] = pd.to_datetime(SELECTED_DF['YYMMDD'], format='%Y%m%d')
+                        # SELECTED_DF['WEEKNUM'] = SELECTED_DF['YYMMDD'].dt.strftime("%Y%U").astype(int)
 
-                            weekno = int(str(year) + number_to_character(i))
-                            SELECTED_DF['WEEKNUM'] = weekno
-                            SELECTED_DF = SELECTED_DF[['WEEKNUM', LOAD_PRICE, '전용면적']]
-                            SELECTED_DF = SELECTED_DF.rename(columns={LOAD_PRICE: '거래가격'})
+                        weekno = int(str(year) + number_to_character(i))
+                        SELECTED_DF['WEEKNUM'] = weekno
+                        SELECTED_DF = SELECTED_DF[['WEEKNUM', LOAD_PRICE, '전용면적']]
+                        SELECTED_DF = SELECTED_DF.rename(columns={LOAD_PRICE: '거래가격'})
 
-                            SELECTED_GRP = SELECTED_DF.groupby('WEEKNUM')[['거래가격', '전용면적']].apply(lambda x: x.astype(float).sum())
-                            SELECTED_GRP['거래건수'] = SELECTED_DF.groupby('WEEKNUM').size()
-                            SELECTED_GRP['전용면적'] = SELECTED_GRP['전용면적'].astype(float)
-                            SELECTED_GRP['평균금액'] = SELECTED_GRP['거래가격'] / SELECTED_GRP['전용면적']
-                            SELECTED_GRP = SELECTED_GRP[['평균금액','거래건수']]
-                            SELECTED_GRP['지역코드'] = area_cd
-                            SELECTED_GRP['거래종류'] = data_type
+                        SELECTED_GRP = SELECTED_DF.groupby('WEEKNUM')[['거래가격', '전용면적']].apply(lambda x: x.astype(float).sum())
+                        SELECTED_GRP['거래건수'] = SELECTED_DF.groupby('WEEKNUM').size()
+                        SELECTED_GRP['전용면적'] = SELECTED_GRP['전용면적'].astype(float)
+                        SELECTED_GRP['평균금액'] = SELECTED_GRP['거래가격'] / SELECTED_GRP['전용면적']
+                        SELECTED_GRP = SELECTED_GRP[['평균금액','거래건수']]
+                        SELECTED_GRP['지역코드'] = area_cd
+                        SELECTED_GRP['거래종류'] = data_type
 
-                            ndb.delete_item(db_name = 'BUDONGSAN', 
+                        ndb.delete_item(db_name = 'BUDONGSAN', 
+                                        collection_name = AGG_COLLECTION,
+                                        condition = {'지역코드': area_cd,
+                                                    '거래종류': data_type,
+                                                    'WEEKNUM': weekno})
+                        ndb.insert_item_many(db_name = 'BUDONGSAN', 
                                             collection_name = AGG_COLLECTION,
-                                            condition = {'지역코드': area_cd,
-                                                        '거래종류': data_type,
-                                                        'WEEKNUM': weekno})
-                            ndb.insert_item_many(db_name = 'BUDONGSAN', 
-                                                collection_name = AGG_COLLECTION,
-                                                datas = SELECTED_GRP.reset_index().to_dict('records'))
-                            print(f"{area_cd}지역, {year}.W{i}의 {data_type} 데이터 집계 완료!")
+                                            datas = SELECTED_GRP.reset_index().to_dict('records'))
+                        print(f"{area_cd}지역, {year}.W{i}의 {data_type} 데이터 집계 완료!")
 
 
 
@@ -128,4 +126,4 @@ class PreAgg:
 #  main
 ###############################################################################
 if __name__ == "__main__":
-    getattr(PreAgg, sys.argv[1])(PreAgg)
+    AGG1()
